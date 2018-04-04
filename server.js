@@ -1,105 +1,90 @@
-//  OpenShift sample Node application
-var express = require('express'),
-    app     = express(),
-    morgan  = require('morgan');
-    
-Object.assign=require('object-assign')
+/**
+ * Created by DfastQ-2 on 1/7/2016.
+ */
+var appRoot = require('app-root-path');
+var config=require(appRoot+'/config.js');
+var express=require('express');
+var app = express();
+var bodyParser=require('body-parser');
+app.use(bodyParser.urlencoded({extended:false}));
+app.use(bodyParser.json());
 
-app.engine('html', require('ejs').renderFile);
-app.use(morgan('combined'))
+if(config.getOnlinePoint()==true)
+{
+//   cors applied only for  development
 
-var port = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080,
-    ip   = process.env.IP   || process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0',
-    mongoURL = process.env.OPENSHIFT_MONGODB_DB_URL || process.env.MONGO_URL,
-    mongoURLLabel = "";
-
-if (mongoURL == null && process.env.DATABASE_SERVICE_NAME) {
-  var mongoServiceName = process.env.DATABASE_SERVICE_NAME.toUpperCase(),
-      mongoHost = process.env[mongoServiceName + '_SERVICE_HOST'],
-      mongoPort = process.env[mongoServiceName + '_SERVICE_PORT'],
-      mongoDatabase = process.env[mongoServiceName + '_DATABASE'],
-      mongoPassword = process.env[mongoServiceName + '_PASSWORD']
-      mongoUser = process.env[mongoServiceName + '_USER'];
-
-  if (mongoHost && mongoPort && mongoDatabase) {
-    mongoURLLabel = mongoURL = 'mongodb://';
-    if (mongoUser && mongoPassword) {
-      mongoURL += mongoUser + ':' + mongoPassword + '@';
-    }
-    // Provide UI label that excludes user id and pw
-    mongoURLLabel += mongoHost + ':' + mongoPort + '/' + mongoDatabase;
-    mongoURL += mongoHost + ':' +  mongoPort + '/' + mongoDatabase;
-
-  }
+  var cors = require('cors');
+  app.use(cors({credentials: true, no: true}));
+//=============================== cors end ====================
 }
-var db = null,
-    dbDetails = new Object();
 
-var initDb = function(callback) {
-  if (mongoURL == null) return;
+//This line to execute public Directory Client route//
+//********************************************************************************
 
-  var mongodb = require('mongodb');
-  if (mongodb == null) return;
+app.use(express.static(__dirname + '/public'));
 
-  mongodb.connect(mongoURL, function(err, conn) {
-    if (err) {
-      callback(err);
-      return;
+if(config.getOnlinePoint()==false) {
+  app.use('/staticImg', express.static(config.getServerImgPath()));  // this is static dir at server PC
+}
+
+app.get('/', function(req, res){
+  res.sendfile(__dirname + '/public/index.html');
+});
+//********************************************************************************
+
+//=====================================MIDDLEWARE FUNCTION===========================================
+app.use('/api',function(req,res, next){
+
+  var token = req.headers['authorization'] ||  req.query.token;
+
+  try {
+    // verify a token symmetric - synchronous
+    var check = config.verifyToken(token);
+
+    if (check == true) {
+      //===ok=============================++++++++++++
+    }
+    else {
+      res.status(403);
+      res.json({err: true, msg: "Access Denied, Plz Login!!!"});
+      res.end();
     }
 
-    db = conn;
-    dbDetails.databaseName = db.databaseName;
-    dbDetails.url = mongoURLLabel;
-    dbDetails.type = 'MongoDB';
-
-    console.log('Connected to MongoDB at: %s', mongoURL);
-  });
-};
-
-app.get('/', function (req, res) {
-  // try to initialize the db on every request if it's not already
-  // initialized.
-  if (!db) {
-    initDb(function(err){});
+  } catch (err) {
+    res.status(403);
+    res.json({err: true, msg: "Access Denied, Plz Login!!!"});
+    res.end();
   }
-  if (db) {
-    var col = db.collection('counts');
-    // Create a document with request IP and current time of request
-    col.insert({ip: req.ip, date: Date.now()});
-    col.count(function(err, count){
-      res.render('index.html', { pageCountMessage : count, dbInfo: dbDetails });
-    });
-  } else {
-    res.render('index.html', { pageCountMessage : null});
-  }
+
+  console.log("hIII client");
+  console.log("userId" + config.getUserId());
+  res.header ['Access-Control-Allow-Origin']= '*';
+  res.header ['Access-Control-Allow-Credentials']= true;
+  res.header ['Access-Control-Allow-Methods']= 'POST, GET, PUT, DELETE, OPTIONS';
+  res.header ['Access-Control-Allow-Headers']= 'Content-Type';
+  next();
 });
 
-app.get('/pagecount', function (req, res) {
-  // try to initialize the db on every request if it's not already
-  // initialized.
-  if (!db) {
-    initDb(function(err){});
-  }
-  if (db) {
-    db.collection('counts').count(function(err, count ){
-      res.send('{ pageCount: ' + count + '}');
-    });
-  } else {
-    res.send('{ pageCount: -1 }');
-  }
+//==========================================MIDDLEWARE END=============================================
+
+//=============================================================================
+//ROUTE ALL FILE
+//=============================================================================
+
+var routes=require(appRoot+'/routes/dLinks.js')(app);
+var routes=require(appRoot+'/routes/notice.js')(app);
+var routes=require(appRoot+'/routes/onLineImageUpload.js')(app);
+var routes=require(appRoot+'/routes/payment.js')(app);
+var routes=require(appRoot+'/routes/user.js')(app);
+
+
+/*var port = process.env.PORT || 8080,
+    ip   = process.env.IP   || '0.0.0.0';*/
+
+var port = process.env.OPENSHIFT_NODEJS_PORT || 8080,
+    ip   = process.env.OPENSHIFT_NODEJS_IP   || '0.0.0.0';
+
+app.listen(port, ip, function () {
+  console.log( "Listening on " + ip + ", port " + port )
 });
 
-// error handling
-app.use(function(err, req, res, next){
-  console.error(err.stack);
-  res.status(500).send('Something bad happened!');
-});
-
-initDb(function(err){
-  console.log('Error connecting to Mongo. Message:\n'+err);
-});
-
-app.listen(port, ip);
-console.log('Server running on http://%s:%s', ip, port);
-
-module.exports = app ;
