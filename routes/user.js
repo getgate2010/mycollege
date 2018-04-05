@@ -14,6 +14,18 @@ var os             = require("os");
 var user={};
 module.exports = function(app) {
 
+    app.get('/dfq_api/read_user', function(req, res, next) {
+        res.json([{
+            id: 1,
+            name: "Hiccup",
+            password: 'hiccup'
+        }, {
+            id: 2,
+            name: "King Arthur",
+            password: 'king-arthur'
+        }])
+    });
+
 //===============================================================
 // CREATE    (user Admin)
 //===============================================================
