@@ -17,12 +17,12 @@ module.exports = function(app) {
     app.get('/dfq_api/read_user', function(req, res, next) {
         res.json([{
             id: 1,
-            name: "Hiccup",
-            password: 'hiccup'
+            name: "parama",
+            password: 'mysql'
         }, {
             id: 2,
-            name: "King Arthur",
-            password: 'king-arthur'
+            name: "trilocham",
+            password: 'node'
         }])
     });
 
