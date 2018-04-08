@@ -21,14 +21,14 @@ if(config.getOnlinePoint()==true)
 //This line to execute public Directory Client route//
 //********************************************************************************
 
-app.use(express.static(__dirname + '/public'));
+app.use(express.static(__dirname + '/build'));
 
 if(config.getOnlinePoint()==false) {
   app.use('/staticImg', express.static(config.getServerImgPath()));  // this is static dir at server PC
 }
 
 app.get('/', function(req, res){
-  res.sendfile(__dirname + '/public/index.html');
+  res.sendfile(__dirname + '/build/index.html');
 });
 //********************************************************************************
 
